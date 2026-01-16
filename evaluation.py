@@ -6,7 +6,7 @@ from model_language import LanguageModel
 from retrieval_model import RetrievalModel
 from corpus import Corpus, Query
 class Evaluation:
-    def __init__(self, corpus, model="openai/gpt-oss-120b", api_key="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"):
+    def __init__(self, corpus, model="openai/gpt-oss-120b", api_key="hello"):
         self.corpus = corpus
         self.model = model
         self.client = Groq(api_key=api_key)
