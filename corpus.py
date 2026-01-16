@@ -82,6 +82,8 @@ class Query:
 
     def get_preprocessed_query(self) -> List[str]:
         return self.__preprocessed_query
+    def __str__(self) -> str:
+        return ' '.join(self.__preprocessed_query)
 
 if __name__ == "__main__":
     corpus_instance = Corpus(CORPUS)
