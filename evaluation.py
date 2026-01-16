@@ -109,7 +109,7 @@ Retournez uniquement le JSON valide, sans texte supplémentaire.
         Returns:
             dict: { query: [doc_id, doc_id, ...] }
         """
-        queries_with_scores = evaluator.get_queries_with_scores(n_queries)
+        queries_with_scores = self.get_queries_with_scores(n_queries)
 
         result = {}
         for query, scores in queries_with_scores.items():
@@ -126,7 +126,7 @@ Retournez uniquement le JSON valide, sans texte supplémentaire.
         model: RetrievalModel,
         n_queries: int = 10,
         threshold: int = 3,
-        limit: int = -1
+        limit: int = 4
     ) -> pd.DataFrame:
         """
         Evaluate a retrieval model using Precision and Recall (no ranking metrics).
@@ -153,7 +153,7 @@ Retournez uniquement le JSON valide, sans texte supplémentaire.
             relevant_docs = set(relevant_docs)
 
             # Model prediction
-            ranked_docs = model.rank(Query(query_text), limit=4)
+            ranked_docs = model.rank(Query(query_text), limit=limit)
             predicted_docs = {doc_id for doc_id, _ in ranked_docs}
 
             # True Positives
@@ -179,6 +179,56 @@ Retournez uniquement le JSON valide, sans texte supplémentaire.
         return pd.DataFrame(rows)
 
 
+    def evaluate_rank_metric(
+        self,
+        model: RetrievalModel,
+        n_queries: int = 2,
+        threshold: int = 3,
+        limit: int = 4
+    ) -> pd.DataFrame:
+        """
+        Evaluate a retrieval model by rank: compute cumulative precision and recall
+        at each rank for each query.
+
+        Args:
+            model: RetrievalModel instance
+            n_queries: number of queries to evaluate
+            threshold: relevance threshold for ground truth
+            limit: max number of documents returned by rank()
+
+        Returns:
+            pd.DataFrame with columns: ['query', 'rank', 'precision', 'recall', 'doc_id']
+        """
+
+        # Ground truth: relevant docs per query
+        gt_queries = self.get_queries_with_important_docs(n_queries=n_queries, threshold=threshold)
+
+        rows = []
+
+        for query_text, relevant_docs in gt_queries.items():
+            relevant_docs = set(relevant_docs)
+            query_obj = Query(query_text)
+            ranked_docs = model.rank(query_obj, limit=limit)
+
+            num_relevant_found = 0
+
+            for i, (doc_id, score) in enumerate(ranked_docs, start=1):  # i = rank (1-indexed)
+                if doc_id in relevant_docs:
+                    num_relevant_found += 1
+
+                recall = num_relevant_found / len(relevant_docs) if len(relevant_docs) > 0 else 0.0
+                precision = num_relevant_found / i
+
+                rows.append({
+                    "query": query_text,
+                    "rank": i,
+                    "doc_id": doc_id,
+                    "precision": precision,
+                    "recall": recall
+                })
+
+        return pd.DataFrame(rows)
+
 
 if __name__ == "__main__":
     from corpus import CORPUS
@@ -198,4 +248,7 @@ if __name__ == "__main__":
 
     results_evaluation = evaluator.evaluate_no_rank_metric(LanguageModel(Corpus(), 0.2), n_queries=10)
     print(results_evaluation)
+    
+    results_evaluations = evaluator.evaluate_rank_metric(LanguageModel(Corpus(), 0.2), n_queries=10, limit=10)
+    print(results_evaluations)
     

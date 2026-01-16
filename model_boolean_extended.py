@@ -9,10 +9,10 @@ from vectorial import SmartNotation, VecotrialModel
 
 
 class ExtendedBooleanModel(RetrievalModel):
-    def __init__(self,corpus:Corpus, p: float = 2.0) -> None:
+    def __init__(self,corpus:Corpus, p: float = 2.0, corpusSmart=SmartNotation.N().T().Max()) -> None:
         super().__init__(corpus)
         self.p = p
-        self.vectorialModel = VecotrialModel(corpusSmart=SmartNotation.N().T().Max(), querySmart=SmartNotation.B().N().N(), corpus=self.corpus)
+        self.vectorialModel = VecotrialModel(corpusSmart=corpusSmart, querySmart=SmartNotation.B().N().N(), corpus=self.corpus)
 
     def rsv(self, query:Query, doc_id: int) -> float:
         query_weights, terms_weight = self.vectorialModel.getSmartWeights(query, doc_id)
