@@ -2,60 +2,43 @@ import math
 from collections import Counter
 from typing import Dict, List, Tuple
 
-from corpus import CORPUS
+from corpus import CORPUS, Corpus, Query
 from preprocessing import preprocess_corpus, preprocess_document
 from retrieval_model import RetrievalModel
 
 
 class LanguageModel(RetrievalModel):
-    def __init__(self, lambd: float = 0.2) -> None:
+    def __init__(self, corpus, lambd: float = 0.2) -> None:
+        super().__init__(corpus)
         self.lambd = lambd
-        self.doc_term_counts: List[Counter] = []
-        self.doc_lengths: List[int] = []
-        self.collection_counts: Counter = Counter()
-        self.collection_length: int = 0
-        self.num_docs: int = 0
-
-    def build(self, preprocessed_corpus: List[List[str]]) -> None:
-        self.num_docs = len(preprocessed_corpus)
-        self.doc_term_counts = [Counter(doc) for doc in preprocessed_corpus]
-        self.doc_lengths = [len(doc) for doc in preprocessed_corpus]
-        self.collection_counts = Counter(
-            term for doc in preprocessed_corpus for term in doc
-        )
-        self.collection_length = sum(self.doc_lengths)
-
-    def rank(self, preprocessed_query: List[str]) -> List[Tuple[int, float]]:
-        scores: List[float] = []
-        for doc_id, doc_counter in enumerate(self.doc_term_counts):
-            doc_length = self.doc_lengths[doc_id]
-            log_score = 0.0
-            for term in preprocessed_query:
-                tf_d = doc_counter.get(term, 0)
-                p_mle_d = tf_d / doc_length if doc_length else 0.0
-                ctf = self.collection_counts.get(term, 0)
-                p_mle_c = ctf / self.collection_length if self.collection_length else 0.0
-                p_term = (1 - self.lambd) * p_mle_d + self.lambd * p_mle_c
-                if p_term > 0:
-                    log_score += math.log(p_term)
-                else:
-                    log_score += float("-inf")
-            scores.append(log_score)
-
-        ranked = sorted(enumerate(scores), key=lambda item: item[1], reverse=True)
-        return ranked
-
-    def rank_query(self, query: str) -> List[Tuple[int, float]]:
-        preprocessed_query = preprocess_document(query)
-        return self.rank(preprocessed_query)
 
 
-PREPROCESSED_CORPUS = preprocess_corpus(CORPUS)
-LANGUAGE_MODEL = LanguageModel()
-LANGUAGE_MODEL.build(PREPROCESSED_CORPUS)
+    def rsv (self, query:Query, doc_id: int) -> float:
+        """PLME score for a given query and document ID"""
+        doc_terms = self.corpus.get_corpus()[doc_id]
+        doc_length = len(doc_terms)
+        collection_term_count = sum([len(doc) for doc in self.corpus.get_corpus()])
+        
+
+        score = 1.0
+        
+        for term in query.get_preprocessed_query():
+            term_freq_in_doc = self.corpus.termOccurenceInDocument(term,doc_id)
+            term_freq_in_collection = self.corpus.termOccurence(term)
+
+            p_td = term_freq_in_doc / doc_length if doc_length > 0 else 0.0
+            p_tc = term_freq_in_collection / collection_term_count if collection_term_count > 0 else 0.0
+
+            p_t = (1 - self.lambd) * p_td + self.lambd * p_tc
+            score *= p_t if p_t > 0 else 1e-10  # Avoid multiplying by zero
+
+        return score        
+        
+
+
 
 
 if __name__ == "__main__":
-    results = LANGUAGE_MODEL.rank_query("dopamine memoire cerveau")
-    for doc_id, score in results[:5]:
+    results = LanguageModel(Corpus(), 0.2).rank(Query("neurone"))
+    for doc_id, score in results:
         print(doc_id, score)
