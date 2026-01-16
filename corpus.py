@@ -59,6 +59,14 @@ class Corpus:
     def get_average_doc_length(self) -> float:
         total_length = sum(len(doc) for doc in self.__preprocessed_corpus)
         return total_length / len(self.__preprocessed_corpus) if self.__preprocessed_corpus else 0.0
+    
+    def get_doc_length(self, doc_id: int) -> int:
+        """ Returns the length of the specified document """
+        if doc_id < 0 or doc_id >= len(self.__preprocessed_corpus):
+            return 0
+        return len(self.__preprocessed_corpus[doc_id])
+    
+    
     def get_max_term_freq_in_doc(self, doc_id: int) -> int:
         """ Returns the maximum term frequency in the specified document """
         if doc_id < 0 or doc_id >= len(self.__preprocessed_corpus):
